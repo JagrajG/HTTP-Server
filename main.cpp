@@ -81,7 +81,7 @@ int main()
     }
     else if (recieve_result == 0)
     {
-        std::cout << "Data send fail\n";
+        std::cout << "The client closed the connection.\n";
     }
     else
     {
