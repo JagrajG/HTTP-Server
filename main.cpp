@@ -88,6 +88,26 @@ int main()
         std::cout << "Data recieve fail\n";
     }
 
+    std::string body = "<h1>Hello from my C++ server</h1>";
+
+    std::string message =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/html\r\n"
+        "Content-Length: " +
+        std::to_string(body.size()) + "\r\n"
+                                      "\r\n" +
+        body;
+    int bytes_send = send(client_fd, message.c_str(), message.size(), 0);
+
+    if (bytes_send == -1)
+    {
+        std::cerr << "Error in sending data\n";
+    }
+    else
+    {
+        std::cout << "Data sent sucesfully\n";
+    }
+
     close(sockfd);
     return 0;
 }
