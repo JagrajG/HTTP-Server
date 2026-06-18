@@ -3,11 +3,20 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <cstring>
+#include <sstream>
 
 #define BUFFER_SIZE 4096
 #define PORT 8080
 sockaddr_in server_addr;
 int backlog = 10;
+
+struct HttpRequest
+{
+    std::string method;
+    std::string path;
+    std::string version;
+};
+
 int main()
 {
     // Socket
@@ -73,6 +82,20 @@ int main()
     }
     char buffer[BUFFER_SIZE];
     int recieve_result = recv(client_fd, buffer, BUFFER_SIZE, 0);
+
+    std::string start_line(buffer, recieve_result);
+    std::string target = "\r\n";
+    size_t pos_target = start_line.find(target);
+
+    if (pos_target == std::string::npos)
+    {
+        std::cout << "Could not find end of request line\n";
+    }
+
+    else
+    {
+        std::string request_line = start_line.substr(0, pos_target);
+    }
 
     if (recieve_result > 0)
     {
