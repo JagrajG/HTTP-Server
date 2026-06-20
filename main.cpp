@@ -47,6 +47,7 @@ int main()
     if (bind_result == -1)
     {
         std::cout << "Bind failed \n";
+        close(sockfd);
         return 1;
     }
     else
@@ -63,6 +64,7 @@ int main()
         if (listen_result == -1)
         {
             std::cout << "Listen Failed\n";
+            close(sockfd);
             return 1;
         }
         else
@@ -79,26 +81,26 @@ int main()
     }
     else
     {
-        std::cout << "Client Socket Sucess\n";
+        std::cout << "Client Socket Success\n";
     }
     char buffer[BUFFER_SIZE];
-    int recieve_result = recv(client_fd, buffer, BUFFER_SIZE, 0);
+    int receive_result = recv(client_fd, buffer, BUFFER_SIZE, 0);
 
-    if (recieve_result > 0)
+    if (receive_result > 0)
     {
-        std::cout << "Read: " << recieve_result << " Byte\n";
-        std::cout.write(buffer, recieve_result);
+        std::cout << "Read: " << receive_result << " Bytes\n";
+        std::cout.write(buffer, receive_result);
     }
-    else if (recieve_result == 0)
+    else if (receive_result == 0)
     {
         std::cout << "The client closed the connection.\n";
     }
     else
     {
-        std::cout << "Data recieve fail\n";
+        std::cout << "Data receive fail\n";
     }
 
-    std::string start_line(buffer, recieve_result);
+    std::string start_line(buffer, receive_result);
     std::string target = "\r\n";
     size_t pos_target = start_line.find(target);
 
