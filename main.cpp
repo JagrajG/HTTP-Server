@@ -5,6 +5,7 @@
 #include <cstring>
 #include <sstream>
 #include <string>
+#include <fstream>
 
 #define BUFFER_SIZE 4096
 #define PORT 8080
@@ -110,6 +111,7 @@ int main()
     std::string start_line(buffer, receive_result);
     std::string target = "\r\n";
     size_t pos_target = start_line.find(target);
+    std::string body;
 
     if (pos_target == std::string::npos)
     {
@@ -129,9 +131,24 @@ int main()
             std::cout << "Path: " << request.path << "\n";
             std::cout << "Version: " << request.version << "\n";
         }
-    }
 
-    std::string body = "<h1>Hello from my C++ server</h1>";
+        if (request.path == "/")
+        {
+            std::ifstream file("public/index.html");
+
+            if (file.is_open())
+            {
+                std::stringstream ss;
+                ss << file.rdbuf();
+                std::string file_contents = ss.str();
+                body = file_contents;
+            }
+            else
+            {
+                body = "<h1> File not Found</h1>";
+            }
+        }
+    }
 
     std::string message =
         "HTTP/1.1 200 OK\r\n"
