@@ -112,7 +112,7 @@ int main()
     std::string target = "\r\n";
     size_t pos_target = start_line.find(target);
     std::string body;
-
+    std::string status;
     if (pos_target == std::string::npos)
     {
         std::cout << "Could not find end of request line\n";
@@ -132,28 +132,38 @@ int main()
             std::cout << "Version: " << request.version << "\n";
         }
 
+        std::string filepath;
+
         if (request.path == "/")
         {
-            std::ifstream file("public/index.html");
+            filepath = "public/index.html";
+        }
+        else
+        {
+            filepath = "public" + request.path;
+        }
 
-            if (file.is_open())
-            {
-                std::stringstream ss;
-                ss << file.rdbuf();
-                std::string file_contents = ss.str();
-                body = file_contents;
-            }
-            else
-            {
-                body = "<h1> File not Found</h1>";
-            }
+        std::ifstream file(filepath);
+
+        if (file.is_open())
+        {
+            std::stringstream ss;
+            ss << file.rdbuf();
+
+            body = ss.str();
+            status = "HTTP/1.1 200 OK";
+        }
+        else
+        {
+            status = "HTTP/1.1 404 Not Found";
+            body = "<h1>404 Not Found</h1>";
         }
     }
 
     std::string message =
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: text/html\r\n"
-        "Content-Length: " +
+        status + "\r\n"
+                 "Content-Type: text/html\r\n"
+                 "Content-Length: " +
         std::to_string(body.size()) + "\r\n"
                                       "\r\n" +
         body;
