@@ -30,7 +30,7 @@ int main()
     }
     else
     {
-        std::cout << "Socket Sucess\n";
+        std::cout << "Socket Success\n";
     }
 
     // Bind
@@ -52,7 +52,7 @@ int main()
     }
     else
     {
-        std::cout << "Bind Sucess\n";
+        std::cout << "Bind Success\n";
         bind_success = true;
     }
 
@@ -77,6 +77,7 @@ int main()
     if (client_fd == -1)
     {
         std::cout << "Accept Failed\n";
+        close(sockfd);
         return 1;
     }
     else
@@ -94,10 +95,16 @@ int main()
     else if (receive_result == 0)
     {
         std::cout << "The client closed the connection.\n";
+        close(sockfd);
+        close(client_fd);
+        return 1;
     }
     else
     {
         std::cout << "Data receive fail\n";
+        close(client_fd);
+        close(sockfd);
+        return 1;
     }
 
     std::string start_line(buffer, receive_result);
@@ -141,7 +148,7 @@ int main()
     }
     else
     {
-        std::cout << "Data sent sucesfully\n";
+        std::cout << "Data sent successfully\n";
     }
 
     close(client_fd);
