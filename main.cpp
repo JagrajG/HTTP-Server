@@ -19,6 +19,39 @@ struct HttpRequest
     std::string version;
 };
 
+std::string get_content_type(std::string &filePath)
+{
+    size_t dotPos = filePath.rfind('.');
+    std::string type = "application/octet-stream";
+    if (dotPos != std::string::npos)
+    {
+        if (filePath.substr(dotPos) == ".html")
+        {
+            type = "text/html";
+            return type;
+        }
+        else if (filePath.substr(dotPos) == ".css")
+        {
+            type = "text/css";
+            return type;
+        }
+        else if (filePath.substr(dotPos) == ".js")
+        {
+            type = "application/javascript";
+            return type;
+        }
+        else if (filePath.substr(dotPos) == ".txt")
+        {
+            type = "text/plain";
+            return type;
+        }
+        else
+        {
+            return type;
+        }
+    }
+    return type;
+}
 int main()
 {
     // Socket
@@ -113,6 +146,8 @@ int main()
     size_t pos_target = start_line.find(target);
     std::string body;
     std::string status;
+    std::string content_type;
+
     if (pos_target == std::string::npos)
     {
         std::cout << "Could not find end of request line\n";
@@ -147,6 +182,7 @@ int main()
 
         if (file.is_open())
         {
+            content_type = get_content_type(filepath);
             std::stringstream ss;
             ss << file.rdbuf();
 
@@ -155,17 +191,17 @@ int main()
         }
         else
         {
+            content_type = "text/html";
             status = "HTTP/1.1 404 Not Found";
             body = "<h1>404 Not Found</h1>";
         }
     }
 
     std::string message =
-        status + "\r\n"
-                 "Content-Type: text/html\r\n"
-                 "Content-Length: " +
-        std::to_string(body.size()) + "\r\n"
-                                      "\r\n" +
+        status + "\r\n" +
+        "Content-Type: " + content_type + "\r\n" +
+        "Content-Length: " + std::to_string(body.size()) + "\r\n"
+                                                           "\r\n" +
         body;
     int bytes_send = send(client_fd, message.c_str(), message.size(), 0);
 
