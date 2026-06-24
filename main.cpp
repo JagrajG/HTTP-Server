@@ -9,6 +9,7 @@
 
 #define BUFFER_SIZE 4096
 #define PORT 8080
+
 sockaddr_in server_addr;
 int backlog = 10;
 
@@ -19,39 +20,111 @@ struct HttpRequest
     std::string version;
 };
 
-std::string get_content_type(std::string &filePath)
+struct HttpResponse
+{
+    std::string status;
+    std::string content_type;
+    std::string body;
+};
+
+HttpRequest parse_request_line(const std::string &request_text)
+{
+    HttpRequest request;
+
+    std::string target = "\r\n";
+    size_t pos_target = request_text.find(target);
+
+    if (pos_target == std::string::npos)
+    {
+        std::cout << "Could not find end of request line\n";
+        return request;
+    }
+
+    std::string request_line = request_text.substr(0, pos_target);
+    std::istringstream iss(request_line);
+
+    if (iss >> request.method >> request.path >> request.version)
+    {
+        std::cout << "Method: " << request.method << "\n";
+        std::cout << "Path: " << request.path << "\n";
+        std::cout << "Version: " << request.version << "\n";
+    }
+
+    return request;
+}
+
+std::string get_content_type(const std::string &filePath)
 {
     size_t dotPos = filePath.rfind('.');
     std::string type = "application/octet-stream";
+
     if (dotPos != std::string::npos)
     {
         if (filePath.substr(dotPos) == ".html")
         {
-            type = "text/html";
-            return type;
+            return "text/html";
         }
         else if (filePath.substr(dotPos) == ".css")
         {
-            type = "text/css";
-            return type;
+            return "text/css";
         }
         else if (filePath.substr(dotPos) == ".js")
         {
-            type = "application/javascript";
-            return type;
+            return "application/javascript";
         }
         else if (filePath.substr(dotPos) == ".txt")
         {
-            type = "text/plain";
-            return type;
-        }
-        else
-        {
-            return type;
+            return "text/plain";
         }
     }
+
     return type;
 }
+
+HttpResponse build_file_response(const HttpRequest &request)
+{
+    HttpResponse response;
+    std::string filepath;
+
+    if (request.path == "/")
+    {
+        filepath = "public/index.html";
+    }
+    else
+    {
+        filepath = "public" + request.path;
+    }
+
+    std::ifstream file(filepath);
+
+    if (file.is_open())
+    {
+        std::stringstream ss;
+        ss << file.rdbuf();
+
+        response.body = ss.str();
+        response.status = "HTTP/1.1 200 OK";
+        response.content_type = get_content_type(filepath);
+    }
+    else
+    {
+        response.body = "<h1>404 Not Found</h1>";
+        response.status = "HTTP/1.1 404 Not Found";
+        response.content_type = "text/html";
+    }
+
+    return response;
+}
+
+std::string build_http_message(const HttpResponse &response)
+{
+    return response.status + "\r\n" +
+           "Content-Type: " + response.content_type + "\r\n" +
+           "Content-Length: " + std::to_string(response.body.size()) + "\r\n"
+                                                                       "\r\n" +
+           response.body;
+}
+
 int main()
 {
     // Socket
@@ -74,40 +147,36 @@ int main()
     server_addr.sin_port = htons(PORT);
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
-    // cast server_addr
     sockaddr *address_ptr = reinterpret_cast<sockaddr *>(&server_addr);
     int bind_result = bind(sockfd, address_ptr, sizeof(server_addr));
-    bool bind_success = false;
+
     if (bind_result == -1)
     {
-        std::cout << "Bind failed \n";
+        std::cout << "Bind failed\n";
         close(sockfd);
         return 1;
     }
     else
     {
         std::cout << "Bind Success\n";
-        bind_success = true;
     }
 
     // Listen
-    if (bind_success)
-    {
-        int listen_result = listen(sockfd, backlog);
+    int listen_result = listen(sockfd, backlog);
 
-        if (listen_result == -1)
-        {
-            std::cout << "Listen Failed\n";
-            close(sockfd);
-            return 1;
-        }
-        else
-        {
-            std::cout << "Listening on port: " << PORT << "\n";
-        }
+    if (listen_result == -1)
+    {
+        std::cout << "Listen Failed\n";
+        close(sockfd);
+        return 1;
+    }
+    else
+    {
+        std::cout << "Listening on port: " << PORT << "\n";
     }
 
     int client_fd = accept(sockfd, nullptr, nullptr);
+
     if (client_fd == -1)
     {
         std::cout << "Accept Failed\n";
@@ -118,6 +187,7 @@ int main()
     {
         std::cout << "Client Socket Success\n";
     }
+
     char buffer[BUFFER_SIZE];
     int receive_result = recv(client_fd, buffer, BUFFER_SIZE, 0);
 
@@ -129,8 +199,8 @@ int main()
     else if (receive_result == 0)
     {
         std::cout << "The client closed the connection.\n";
-        close(sockfd);
         close(client_fd);
+        close(sockfd);
         return 1;
     }
     else
@@ -141,68 +211,12 @@ int main()
         return 1;
     }
 
-    std::string start_line(buffer, receive_result);
-    std::string target = "\r\n";
-    size_t pos_target = start_line.find(target);
-    std::string body;
-    std::string status;
-    std::string content_type;
+    std::string request_text(buffer, receive_result);
 
-    if (pos_target == std::string::npos)
-    {
-        std::cout << "Could not find end of request line\n";
-    }
+    HttpRequest request = parse_request_line(request_text);
+    HttpResponse response = build_file_response(request);
+    std::string message = build_http_message(response);
 
-    else
-    {
-        std::string request_line = start_line.substr(0, pos_target);
-
-        HttpRequest request;
-        std::istringstream iss(request_line);
-
-        if (iss >> request.method >> request.path >> request.version)
-        {
-            std::cout << "Method: " << request.method << "\n";
-            std::cout << "Path: " << request.path << "\n";
-            std::cout << "Version: " << request.version << "\n";
-        }
-
-        std::string filepath;
-
-        if (request.path == "/")
-        {
-            filepath = "public/index.html";
-        }
-        else
-        {
-            filepath = "public" + request.path;
-        }
-
-        std::ifstream file(filepath);
-
-        if (file.is_open())
-        {
-            content_type = get_content_type(filepath);
-            std::stringstream ss;
-            ss << file.rdbuf();
-
-            body = ss.str();
-            status = "HTTP/1.1 200 OK";
-        }
-        else
-        {
-            content_type = "text/html";
-            status = "HTTP/1.1 404 Not Found";
-            body = "<h1>404 Not Found</h1>";
-        }
-    }
-
-    std::string message =
-        status + "\r\n" +
-        "Content-Type: " + content_type + "\r\n" +
-        "Content-Length: " + std::to_string(body.size()) + "\r\n"
-                                                           "\r\n" +
-        body;
     int bytes_send = send(client_fd, message.c_str(), message.size(), 0);
 
     if (bytes_send == -1)
@@ -216,5 +230,6 @@ int main()
 
     close(client_fd);
     close(sockfd);
+
     return 0;
 }
