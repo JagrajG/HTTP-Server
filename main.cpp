@@ -27,6 +27,14 @@ struct HttpResponse
     std::string body;
 };
 
+void log_request(const HttpRequest &request, const HttpResponse &response)
+{
+    std::cout << request.method << " "
+              << request.path << " -> "
+              << response.status << " "
+              << response.content_type << " "
+              << response.body.size() << " bytes\n";
+}
 HttpRequest parse_request_line(const std::string &request_text)
 {
     HttpRequest request;
@@ -215,6 +223,7 @@ int main()
 
     HttpRequest request = parse_request_line(request_text);
     HttpResponse response = build_file_response(request);
+    log_request(request, response);
     std::string message = build_http_message(response);
 
     int bytes_send = send(client_fd, message.c_str(), message.size(), 0);
