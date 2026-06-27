@@ -156,6 +156,20 @@ int main()
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
     sockaddr *address_ptr = reinterpret_cast<sockaddr *>(&server_addr);
+    int option = 1;
+
+    int setSockRes = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
+
+    if (setSockRes == -1)
+    {
+        std::cout << "SetSocket failed\n";
+        close(sockfd);
+        return 1;
+    }
+    else
+    {
+        std::cout << "SetSocket Success\n";
+    }
     int bind_result = bind(sockfd, address_ptr, sizeof(server_addr));
 
     if (bind_result == -1)
