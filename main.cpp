@@ -196,62 +196,62 @@ int main()
     {
         std::cout << "Listening on port: " << PORT << "\n";
     }
-
-    int client_fd = accept(sockfd, nullptr, nullptr);
-
-    if (client_fd == -1)
+    while (true)
     {
-        std::cout << "Accept Failed\n";
-        close(sockfd);
-        return 1;
-    }
-    else
-    {
-        std::cout << "Client Socket Success\n";
-    }
 
-    char buffer[BUFFER_SIZE];
-    int receive_result = recv(client_fd, buffer, BUFFER_SIZE, 0);
+        int client_fd = accept(sockfd, nullptr, nullptr);
 
-    if (receive_result > 0)
-    {
-        std::cout << "Read: " << receive_result << " Bytes\n";
-        std::cout.write(buffer, receive_result);
-    }
-    else if (receive_result == 0)
-    {
-        std::cout << "The client closed the connection.\n";
+        if (client_fd == -1)
+        {
+            std::cout << "Accept Failed\n";
+            close(sockfd);
+            return 1;
+        }
+        else
+        {
+            std::cout << "Client Socket Success\n";
+        }
+
+        char buffer[BUFFER_SIZE];
+        int receive_result = recv(client_fd, buffer, BUFFER_SIZE, 0);
+
+        if (receive_result > 0)
+        {
+            std::cout << "Read: " << receive_result << " Bytes\n";
+            std::cout.write(buffer, receive_result);
+        }
+        else if (receive_result == 0)
+        {
+            std::cout << "The client closed the connection.\n";
+            close(client_fd);
+            continue;
+        }
+        else
+        {
+            std::cout << "Data receive fail\n";
+            close(client_fd);
+            continue;
+        }
+
+        std::string request_text(buffer, receive_result);
+
+        HttpRequest request = parse_request_line(request_text);
+        HttpResponse response = build_file_response(request);
+        log_request(request, response);
+        std::string message = build_http_message(response);
+
+        int bytes_send = send(client_fd, message.c_str(), message.size(), 0);
+
+        if (bytes_send == -1)
+        {
+            std::cerr << "Error in sending data\n";
+        }
+        else
+        {
+            std::cout << "Data sent successfully\n";
+        }
         close(client_fd);
-        close(sockfd);
-        return 1;
     }
-    else
-    {
-        std::cout << "Data receive fail\n";
-        close(client_fd);
-        close(sockfd);
-        return 1;
-    }
-
-    std::string request_text(buffer, receive_result);
-
-    HttpRequest request = parse_request_line(request_text);
-    HttpResponse response = build_file_response(request);
-    log_request(request, response);
-    std::string message = build_http_message(response);
-
-    int bytes_send = send(client_fd, message.c_str(), message.size(), 0);
-
-    if (bytes_send == -1)
-    {
-        std::cerr << "Error in sending data\n";
-    }
-    else
-    {
-        std::cout << "Data sent successfully\n";
-    }
-
-    close(client_fd);
     close(sockfd);
 
     return 0;
