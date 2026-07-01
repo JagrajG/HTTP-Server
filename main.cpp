@@ -133,6 +133,47 @@ std::string build_http_message(const HttpResponse &response)
            response.body;
 }
 
+void handle_client(int client_fd)
+{
+
+    char buffer[BUFFER_SIZE];
+    int receive_result = recv(client_fd, buffer, BUFFER_SIZE, 0);
+
+    if (receive_result > 0)
+    {
+        std::cout << "Read: " << receive_result << " Bytes\n";
+        std::cout.write(buffer, receive_result);
+    }
+    else if (receive_result == 0)
+    {
+        std::cout << "The client closed the connection.\n";
+        return;
+    }
+    else
+    {
+        std::cout << "Data receive fail\n";
+        return;
+    }
+
+    std::string request_text(buffer, receive_result);
+
+    HttpRequest request = parse_request_line(request_text);
+    HttpResponse response = build_file_response(request);
+    log_request(request, response);
+    std::string message = build_http_message(response);
+
+    int bytes_send = send(client_fd, message.c_str(), message.size(), 0);
+
+    if (bytes_send == -1)
+    {
+        std::cerr << "Error in sending data\n";
+    }
+    else
+    {
+        std::cout << "Data sent successfully\n";
+    }
+}
+
 int main()
 {
     // Socket
@@ -212,44 +253,7 @@ int main()
             std::cout << "Client Socket Success\n";
         }
 
-        char buffer[BUFFER_SIZE];
-        int receive_result = recv(client_fd, buffer, BUFFER_SIZE, 0);
-
-        if (receive_result > 0)
-        {
-            std::cout << "Read: " << receive_result << " Bytes\n";
-            std::cout.write(buffer, receive_result);
-        }
-        else if (receive_result == 0)
-        {
-            std::cout << "The client closed the connection.\n";
-            close(client_fd);
-            continue;
-        }
-        else
-        {
-            std::cout << "Data receive fail\n";
-            close(client_fd);
-            continue;
-        }
-
-        std::string request_text(buffer, receive_result);
-
-        HttpRequest request = parse_request_line(request_text);
-        HttpResponse response = build_file_response(request);
-        log_request(request, response);
-        std::string message = build_http_message(response);
-
-        int bytes_send = send(client_fd, message.c_str(), message.size(), 0);
-
-        if (bytes_send == -1)
-        {
-            std::cerr << "Error in sending data\n";
-        }
-        else
-        {
-            std::cout << "Data sent successfully\n";
-        }
+        handle_client(client_fd);
         close(client_fd);
     }
     close(sockfd);
