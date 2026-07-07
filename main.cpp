@@ -85,6 +85,30 @@ std::string get_content_type(const std::string &filePath)
         {
             return "text/plain";
         }
+        else if (filePath.substr(dotPos) == ".png")
+        {
+            return "image/png";
+        }
+        else if (filePath.substr(dotPos) == ".jpg")
+        {
+            return "image/jpeg";
+        }
+        else if (filePath.substr(dotPos) == ".jpeg")
+        {
+            return "image/jpeg";
+        }
+        else if (filePath.substr(dotPos) == ".gif")
+        {
+            return "image/gif";
+        }
+        else if (filePath.substr(dotPos) == ".svg")
+        {
+            return "image/svg+xml";
+        }
+        else if (filePath.substr(dotPos) == ".ico")
+        {
+            return "image/x-icon";
+        }
     }
 
     return type;
