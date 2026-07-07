@@ -91,6 +91,7 @@ std::string get_content_type(const std::string &filePath)
 
 HttpResponse build_file_response(const HttpRequest &request)
 {
+
     HttpResponse response;
     std::string filepath;
 
@@ -122,6 +123,23 @@ HttpResponse build_file_response(const HttpRequest &request)
     }
 
     return response;
+}
+
+HttpResponse build_response(const HttpRequest &request)
+{
+    HttpResponse response;
+    if (request.method == "GET")
+    {
+        response = build_file_response(request);
+    }
+    else
+    {
+        response.status = "HTTP/1.1 405 Method Not Allowed";
+        response.content_type = "text/html";
+        response.body = "<h1>405 Method Not Allowed</h1>";
+    }
+    return response;
+    ;
 }
 
 std::string build_http_message(const HttpResponse &response)
@@ -158,7 +176,7 @@ void handle_client(int client_fd)
     std::string request_text(buffer, receive_result);
 
     HttpRequest request = parse_request_line(request_text);
-    HttpResponse response = build_file_response(request);
+    HttpResponse response = build_response(request);
     log_request(request, response);
     std::string message = build_http_message(response);
 
