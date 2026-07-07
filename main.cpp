@@ -35,6 +35,7 @@ void log_request(const HttpRequest &request, const HttpResponse &response)
               << response.content_type << " "
               << response.body.size() << " bytes\n";
 }
+
 HttpRequest parse_request_line(const std::string &request_text)
 {
     HttpRequest request;
@@ -89,9 +90,19 @@ std::string get_content_type(const std::string &filePath)
     return type;
 }
 
+HttpResponse make_error_response(const std::string &status, const std::string &message)
+{
+    HttpResponse response;
+
+    response.status = status;
+    response.content_type = "text/html";
+    response.body = "<h1>" + message + "</h1>";
+
+    return response;
+}
+
 HttpResponse build_file_response(const HttpRequest &request)
 {
-
     HttpResponse response;
     std::string filepath;
 
@@ -117,9 +128,7 @@ HttpResponse build_file_response(const HttpRequest &request)
     }
     else
     {
-        response.body = "<h1>404 Not Found</h1>";
-        response.status = "HTTP/1.1 404 Not Found";
-        response.content_type = "text/html";
+        response = make_error_response("HTTP/1.1 404 Not Found", "404 Not Found");
     }
 
     return response;
@@ -127,19 +136,17 @@ HttpResponse build_file_response(const HttpRequest &request)
 
 HttpResponse build_response(const HttpRequest &request)
 {
-    HttpResponse response;
+    if (request.method.empty() || request.path.empty() || request.version.empty())
+    {
+        return make_error_response("HTTP/1.1 400 Bad Request", "400 Bad Request");
+    }
+
     if (request.method == "GET")
     {
-        response = build_file_response(request);
+        return build_file_response(request);
     }
-    else
-    {
-        response.status = "HTTP/1.1 405 Method Not Allowed";
-        response.content_type = "text/html";
-        response.body = "<h1>405 Method Not Allowed</h1>";
-    }
-    return response;
-    ;
+
+    return make_error_response("HTTP/1.1 405 Method Not Allowed", "405 Method Not Allowed");
 }
 
 std::string build_http_message(const HttpResponse &response)
@@ -153,7 +160,6 @@ std::string build_http_message(const HttpResponse &response)
 
 void handle_client(int client_fd)
 {
-
     char buffer[BUFFER_SIZE];
     int receive_result = recv(client_fd, buffer, BUFFER_SIZE, 0);
 
@@ -178,6 +184,7 @@ void handle_client(int client_fd)
     HttpRequest request = parse_request_line(request_text);
     HttpResponse response = build_response(request);
     log_request(request, response);
+
     std::string message = build_http_message(response);
 
     int bytes_send = send(client_fd, message.c_str(), message.size(), 0);
@@ -207,7 +214,7 @@ int main()
         std::cout << "Socket Success\n";
     }
 
-    // Bind
+    // Address setup
     std::memset(&server_addr, 0, sizeof(server_addr));
 
     server_addr.sin_family = AF_INET;
@@ -215,20 +222,24 @@ int main()
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
     sockaddr *address_ptr = reinterpret_cast<sockaddr *>(&server_addr);
+
+    // Socket options
     int option = 1;
 
     int setSockRes = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
 
     if (setSockRes == -1)
     {
-        std::cout << "SetSocket failed\n";
+        std::cout << "setsockopt failed\n";
         close(sockfd);
         return 1;
     }
     else
     {
-        std::cout << "SetSocket Success\n";
+        std::cout << "SO_REUSEADDR Success\n";
     }
+
+    // Bind
     int bind_result = bind(sockfd, address_ptr, sizeof(server_addr));
 
     if (bind_result == -1)
@@ -255,9 +266,9 @@ int main()
     {
         std::cout << "Listening on port: " << PORT << "\n";
     }
+
     while (true)
     {
-
         int client_fd = accept(sockfd, nullptr, nullptr);
 
         if (client_fd == -1)
@@ -274,6 +285,7 @@ int main()
         handle_client(client_fd);
         close(client_fd);
     }
+
     close(sockfd);
 
     return 0;
