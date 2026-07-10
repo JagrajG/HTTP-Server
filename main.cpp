@@ -124,11 +124,25 @@ HttpResponse make_error_response(const std::string &status, const std::string &m
 
     return response;
 }
+bool is_safe_path(const std::string &path)
+{
+    if (path.find("..") != std::string::npos)
+    {
+        return false;
+    }
+
+    return true;
+}
 
 HttpResponse build_file_response(const HttpRequest &request)
 {
     HttpResponse response;
     std::string filepath;
+
+    if (!is_safe_path(request.path))
+    {
+        return make_error_response("HTTP/1.1 403 Forbidden", "403 Forbidden");
+    }
 
     if (request.path == "/")
     {
