@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 #include <fstream>
+#include <map>
 
 #define BUFFER_SIZE 4096
 #define PORT 8080
@@ -18,6 +19,7 @@ struct HttpRequest
     std::string method;
     std::string path;
     std::string version;
+    std::map<std::string, std::string> headers;
 };
 
 struct HttpResponse
@@ -40,23 +42,72 @@ HttpRequest parse_request_line(const std::string &request_text)
 {
     HttpRequest request;
 
-    std::string target = "\r\n";
-    size_t pos_target = request_text.find(target);
+    std::istringstream stream(request_text);
+    std::string line;
 
-    if (pos_target == std::string::npos)
+    // Read request line: GET / HTTP/1.1
+    if (!std::getline(stream, line))
     {
-        std::cout << "Could not find end of request line\n";
+        std::cout << "Could not read request line\n";
         return request;
     }
 
-    std::string request_line = request_text.substr(0, pos_target);
-    std::istringstream iss(request_line);
+    // Remove trailing \r if present
+    if (!line.empty() && line.back() == '\r')
+    {
+        line.pop_back();
+    }
 
-    if (iss >> request.method >> request.path >> request.version)
+    std::istringstream request_line_stream(line);
+
+    if (request_line_stream >> request.method >> request.path >> request.version)
     {
         std::cout << "Method: " << request.method << "\n";
         std::cout << "Path: " << request.path << "\n";
         std::cout << "Version: " << request.version << "\n";
+    }
+    else
+    {
+        std::cout << "Failed to parse request line\n";
+        return request;
+    }
+
+    // Read headers until blank line
+    while (std::getline(stream, line))
+    {
+        if (!line.empty() && line.back() == '\r')
+        {
+            line.pop_back();
+        }
+
+        if (line.empty())
+        {
+            break;
+        }
+
+        size_t colon_pos = line.find(':');
+
+        if (colon_pos == std::string::npos)
+        {
+            continue;
+        }
+
+        std::string key = line.substr(0, colon_pos);
+        std::string value = line.substr(colon_pos + 1);
+
+        // Remove one leading space after colon
+        if (!value.empty() && value[0] == ' ')
+        {
+            value.erase(0, 1);
+        }
+
+        request.headers[key] = value;
+    }
+
+    std::cout << "Headers:\n";
+    for (const auto &header : request.headers)
+    {
+        std::cout << header.first << ": " << header.second << "\n";
     }
 
     return request;
