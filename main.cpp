@@ -20,8 +20,8 @@ struct HttpRequest
     std::string path;
     std::string version;
     std::map<std::string, std::string> headers;
+    std::string body;
 };
-
 struct HttpResponse
 {
     std::string status;
@@ -52,7 +52,6 @@ HttpRequest parse_request_line(const std::string &request_text)
         return request;
     }
 
-    // Remove trailing \r if present
     if (!line.empty() && line.back() == '\r')
     {
         line.pop_back();
@@ -95,7 +94,6 @@ HttpRequest parse_request_line(const std::string &request_text)
         std::string key = line.substr(0, colon_pos);
         std::string value = line.substr(colon_pos + 1);
 
-        // Remove one leading space after colon
         if (!value.empty() && value[0] == ' ')
         {
             value.erase(0, 1);
@@ -104,10 +102,31 @@ HttpRequest parse_request_line(const std::string &request_text)
         request.headers[key] = value;
     }
 
+    // Read body after the blank line
+    std::string body;
+    std::string body_line;
+
+    while (std::getline(stream, body_line))
+    {
+        body += body_line;
+
+        if (!stream.eof())
+        {
+            body += "\n";
+        }
+    }
+
+    request.body = body;
+
     std::cout << "Headers:\n";
     for (const auto &header : request.headers)
     {
         std::cout << header.first << ": " << header.second << "\n";
+    }
+
+    if (!request.body.empty())
+    {
+        std::cout << "Body: " << request.body << "\n";
     }
 
     return request;
