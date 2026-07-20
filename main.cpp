@@ -132,6 +132,17 @@ HttpRequest parse_request_line(const std::string &request_text)
     return request;
 }
 
+HttpResponse build_echo_response(const HttpRequest &request)
+{
+    HttpResponse response;
+
+    response.status = "HTTP/1.1 200 OK";
+    response.content_type = "text/plain";
+    response.body = request.body;
+
+    return response;
+}
+
 std::string get_content_type(const std::string &filePath)
 {
     size_t dotPos = filePath.rfind('.');
@@ -183,7 +194,6 @@ std::string get_content_type(const std::string &filePath)
 
     return type;
 }
-
 HttpResponse make_error_response(const std::string &status, const std::string &message)
 {
     HttpResponse response;
@@ -252,6 +262,11 @@ HttpResponse build_response(const HttpRequest &request)
     if (request.method == "GET")
     {
         return build_file_response(request);
+    }
+
+    if (request.method == "POST" && request.path == "/echo")
+    {
+        return build_echo_response(request);
     }
 
     return make_error_response("HTTP/1.1 405 Method Not Allowed", "405 Method Not Allowed");
