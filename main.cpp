@@ -7,6 +7,7 @@
 #include <string>
 #include <fstream>
 #include <map>
+#include <cstdio>
 
 #define BUFFER_SIZE 4096
 #define PORT 8080
@@ -28,6 +29,29 @@ struct HttpResponse
     std::string content_type;
     std::string body;
 };
+
+// Function prototypes
+void log_request(const HttpRequest &request, const HttpResponse &response);
+
+HttpRequest parse_request_line(const std::string &request_text);
+
+std::string get_content_type(const std::string &filePath);
+
+HttpResponse make_error_response(const std::string &status, const std::string &message);
+
+bool is_safe_path(const std::string &path);
+
+HttpResponse build_file_response(const HttpRequest &request);
+
+HttpResponse build_echo_response(const HttpRequest &request);
+
+HttpResponse build_delete_response(const HttpRequest &request);
+
+HttpResponse build_response(const HttpRequest &request);
+
+std::string build_http_message(const HttpResponse &response);
+
+void handle_client(int client_fd);
 
 void log_request(const HttpRequest &request, const HttpResponse &response)
 {
@@ -130,6 +154,34 @@ HttpRequest parse_request_line(const std::string &request_text)
     }
 
     return request;
+}
+
+HttpResponse build_delete_response(const HttpRequest &request)
+{
+    if (!is_safe_path(request.path))
+    {
+        return make_error_response("HTTP/1.1 403 Forbidden", "403 Forbidden");
+    }
+
+    if (request.path == "/")
+    {
+        return make_error_response("HTTP/1.1 400 Bad Request", "400 Bad Request");
+    }
+
+    std::string filepath = "public" + request.path;
+
+    int result = std::remove(filepath.c_str());
+
+    if (result == 0)
+    {
+        HttpResponse response;
+        response.status = "HTTP/1.1 200 OK";
+        response.content_type = "text/plain";
+        response.body = "Deleted: " + request.path;
+        return response;
+    }
+
+    return make_error_response("HTTP/1.1 404 Not Found", "404 Not Found");
 }
 
 HttpResponse build_echo_response(const HttpRequest &request)
@@ -267,6 +319,11 @@ HttpResponse build_response(const HttpRequest &request)
     if (request.method == "POST" && request.path == "/echo")
     {
         return build_echo_response(request);
+    }
+
+    if (request.method == "DELETE")
+    {
+        return build_delete_response(request);
     }
 
     return make_error_response("HTTP/1.1 405 Method Not Allowed", "405 Method Not Allowed");
