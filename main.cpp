@@ -23,6 +23,7 @@ struct HttpRequest
     std::map<std::string, std::string> headers;
     std::string body;
 };
+
 struct HttpResponse
 {
     std::string status;
@@ -33,7 +34,9 @@ struct HttpResponse
 // Function prototypes
 void log_request(const HttpRequest &request, const HttpResponse &response);
 
-HttpRequest parse_request_line(const std::string &request_text);
+void remove_trailing_carriage_return(std::string &line);
+
+HttpRequest parse_http_request(const std::string &request_text);
 
 std::string get_content_type(const std::string &filePath);
 
@@ -84,24 +87,28 @@ void log_request(const HttpRequest &request, const HttpResponse &response)
               << response.body.size() << " bytes\n";
 }
 
-HttpRequest parse_request_line(const std::string &request_text)
+void remove_trailing_carriage_return(std::string &line)
+{
+    if (!line.empty() && line.back() == '\r')
+    {
+        line.pop_back();
+    }
+}
+
+HttpRequest parse_http_request(const std::string &request_text)
 {
     HttpRequest request;
 
     std::istringstream stream(request_text);
     std::string line;
 
-    // Read request line: GET / HTTP/1.1
     if (!std::getline(stream, line))
     {
         std::cout << "Could not read request line\n";
         return request;
     }
 
-    if (!line.empty() && line.back() == '\r')
-    {
-        line.pop_back();
-    }
+    remove_trailing_carriage_return(line);
 
     std::istringstream request_line_stream(line);
 
@@ -117,13 +124,9 @@ HttpRequest parse_request_line(const std::string &request_text)
         return request;
     }
 
-    // Read headers until blank line
     while (std::getline(stream, line))
     {
-        if (!line.empty() && line.back() == '\r')
-        {
-            line.pop_back();
-        }
+        remove_trailing_carriage_return(line);
 
         if (line.empty())
         {
@@ -148,7 +151,6 @@ HttpRequest parse_request_line(const std::string &request_text)
         request.headers[key] = value;
     }
 
-    // Read body after the blank line
     std::string body;
     std::string body_line;
 
@@ -224,43 +226,45 @@ std::string get_content_type(const std::string &filePath)
 
     if (dotPos != std::string::npos)
     {
-        if (filePath.substr(dotPos) == ".html")
+        std::string ext = filePath.substr(dotPos);
+
+        if (ext == ".html")
         {
             return "text/html";
         }
-        else if (filePath.substr(dotPos) == ".css")
+        else if (ext == ".css")
         {
             return "text/css";
         }
-        else if (filePath.substr(dotPos) == ".js")
+        else if (ext == ".js")
         {
             return "application/javascript";
         }
-        else if (filePath.substr(dotPos) == ".txt")
+        else if (ext == ".txt")
         {
             return "text/plain";
         }
-        else if (filePath.substr(dotPos) == ".png")
+        else if (ext == ".png")
         {
             return "image/png";
         }
-        else if (filePath.substr(dotPos) == ".jpg")
+        else if (ext == ".jpg")
         {
             return "image/jpeg";
         }
-        else if (filePath.substr(dotPos) == ".jpeg")
+        else if (ext == ".jpeg")
         {
             return "image/jpeg";
         }
-        else if (filePath.substr(dotPos) == ".gif")
+        else if (ext == ".gif")
         {
             return "image/gif";
         }
-        else if (filePath.substr(dotPos) == ".svg")
+        else if (ext == ".svg")
         {
             return "image/svg+xml";
         }
-        else if (filePath.substr(dotPos) == ".ico")
+        else if (ext == ".ico")
         {
             return "image/x-icon";
         }
@@ -268,6 +272,7 @@ std::string get_content_type(const std::string &filePath)
 
     return type;
 }
+
 HttpResponse make_error_response(const std::string &status, const std::string &message)
 {
     HttpResponse response;
@@ -278,6 +283,7 @@ HttpResponse make_error_response(const std::string &status, const std::string &m
 
     return response;
 }
+
 bool is_safe_path(const std::string &path)
 {
     if (path.find("..") != std::string::npos)
@@ -374,6 +380,7 @@ void handle_client(int client_fd)
     {
         std::cout << "Read: " << receive_result << " Bytes\n";
         std::cout.write(buffer, receive_result);
+        std::cout << "\n";
     }
     else if (receive_result == 0)
     {
@@ -388,7 +395,7 @@ void handle_client(int client_fd)
 
     std::string request_text(buffer, receive_result);
 
-    HttpRequest request = parse_request_line(request_text);
+    HttpRequest request = parse_http_request(request_text);
     HttpResponse response = build_response(request);
     log_request(request, response);
 
