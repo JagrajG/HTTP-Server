@@ -51,7 +51,29 @@ HttpResponse build_response(const HttpRequest &request);
 
 std::string build_http_message(const HttpResponse &response);
 
+bool has_valid_content_length(const HttpRequest &request);
+
 void handle_client(int client_fd);
+
+bool has_valid_content_length(const HttpRequest &request)
+{
+    auto it = request.headers.find("Content-Length");
+
+    if (it == request.headers.end())
+    {
+        return true;
+    }
+
+    try
+    {
+        int expected_length = std::stoi(it->second);
+        return expected_length == static_cast<int>(request.body.size());
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
 
 void log_request(const HttpRequest &request, const HttpResponse &response)
 {
@@ -307,6 +329,11 @@ HttpResponse build_file_response(const HttpRequest &request)
 HttpResponse build_response(const HttpRequest &request)
 {
     if (request.method.empty() || request.path.empty() || request.version.empty())
+    {
+        return make_error_response("HTTP/1.1 400 Bad Request", "400 Bad Request");
+    }
+
+    if (!has_valid_content_length(request))
     {
         return make_error_response("HTTP/1.1 400 Bad Request", "400 Bad Request");
     }
