@@ -8,6 +8,8 @@
 #include <fstream>
 #include <map>
 #include <cstdio>
+#include <poll.h>
+#include <vector>
 
 #define BUFFER_SIZE 4096
 #define PORT 8080
@@ -481,23 +483,61 @@ int main()
         std::cout << "Listening on port: " << PORT << "\n";
     }
 
+    std::vector<pollfd> fds;
+
+    pollfd server_poll_fd;
+    server_poll_fd.fd = sockfd;
+    server_poll_fd.events = POLLIN;
+    server_poll_fd.revents = 0;
+
+    fds.push_back(server_poll_fd);
+
     while (true)
     {
-        int client_fd = accept(sockfd, nullptr, nullptr);
+        int poll_result = poll(fds.data(), fds.size(), -1);
 
-        if (client_fd == -1)
+        if (poll_result == -1)
         {
-            std::cout << "Accept Failed\n";
+            std::cout << "poll failed\n";
             close(sockfd);
             return 1;
         }
-        else
-        {
-            std::cout << "Client Socket Success\n";
-        }
 
-        handle_client(client_fd);
-        close(client_fd);
+        for (size_t i = 0; i < fds.size(); i++)
+        {
+            if (fds[i].revents & POLLIN)
+            {
+                if (fds[i].fd == sockfd)
+                {
+                    int client_fd = accept(sockfd, nullptr, nullptr);
+
+                    if (client_fd == -1)
+                    {
+                        std::cout << "Accept Failed\n";
+                        continue;
+                    }
+
+                    std::cout << "Client Socket Success\n";
+
+                    pollfd client_poll_fd;
+                    client_poll_fd.fd = client_fd;
+                    client_poll_fd.events = POLLIN;
+                    client_poll_fd.revents = 0;
+
+                    fds.push_back(client_poll_fd);
+                }
+                else
+                {
+                    int client_fd = fds[i].fd;
+
+                    handle_client(client_fd);
+                    close(client_fd);
+
+                    fds.erase(fds.begin() + i);
+                    i--;
+                }
+            }
+        }
     }
 
     close(sockfd);
